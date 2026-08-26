@@ -81,7 +81,7 @@ pub fn frame_window_options(bounds: Bounds<Pixels>) -> WindowOptions {
     WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(bounds)),
         titlebar: Some(TitlebarOptions {
-            title: None,
+            title: Some("Frame".into()),
             appears_transparent: true,
             traffic_light_position: Some(point(
                 px(crate::TITLEBAR_MACOS_NATIVE_TRAFFIC_LIGHT_X),

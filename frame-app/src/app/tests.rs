@@ -3574,6 +3574,17 @@ mod frame_window_options {
 
         assert_eq!(options.app_id.as_deref(), Some(FRAME_APP_ID));
     }
+
+    #[test]
+    fn sets_the_native_window_title() {
+        let options = frame_window_options(Bounds::default());
+        let titlebar = options
+            .titlebar
+            .as_ref()
+            .expect("Frame should configure native titlebar metadata");
+
+        assert_eq!(titlebar.title.as_deref(), Some("Frame"));
+    }
 }
 
 mod visual_fixtures {
