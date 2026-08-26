@@ -899,6 +899,23 @@ pub fn normalize_output_config(
     before != *config
 }
 
+pub fn initialize_output_config(
+    config: &mut ConversionConfig,
+    metadata: Option<&SourceMetadata>,
+) -> bool {
+    let before = config.clone();
+    normalize_output_config(config, metadata);
+
+    if container_supports_audio(&config.container)
+        && config.selected_audio_tracks.is_empty()
+        && let Some(first_track) = metadata.and_then(|metadata| metadata.audio_tracks.first())
+    {
+        config.selected_audio_tracks.push(first_track.index);
+    }
+
+    before != *config
+}
+
 pub fn normalize_video_config(
     config: &mut ConversionConfig,
     metadata: Option<&SourceMetadata>,
