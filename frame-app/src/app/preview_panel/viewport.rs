@@ -703,12 +703,12 @@ fn preview_viewport_corner_cutout(
     builder.close();
 }
 
-fn preview_scroll_delta_y(delta: &ScrollDelta) -> f64 {
+pub(in crate::app) fn preview_scroll_delta_y(delta: &ScrollDelta) -> f64 {
     match delta {
         ScrollDelta::Pixels(point) => {
-            f64::from(point.y.as_f32()) / PREVIEW_CANVAS_WHEEL_PIXEL_DELTA_PER_STEP
+            -f64::from(point.y.as_f32()) / PREVIEW_CANVAS_WHEEL_PIXEL_DELTA_PER_STEP
         }
-        ScrollDelta::Lines(point) => f64::from(point.y),
+        ScrollDelta::Lines(point) => -f64::from(point.y),
     }
 }
 

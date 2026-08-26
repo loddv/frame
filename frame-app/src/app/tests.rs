@@ -14,10 +14,10 @@ use super::preview_actions::{
     preview_overlay_keyboard_delta, preview_runtime_dimensions,
 };
 use super::preview_panel::{
-    centered_offset, preview_crop_visual_rect, preview_presented_frame, preview_shell_state,
-    preview_timeline_labels, preview_trim_enabled, preview_visual_controls_visible,
-    timeline_fraction_from_percent, timeline_keyboard_time_for_key,
-    timeline_slider_percent_from_bounds,
+    centered_offset, preview_crop_visual_rect, preview_presented_frame, preview_scroll_delta_y,
+    preview_shell_state, preview_timeline_labels, preview_trim_enabled,
+    preview_visual_controls_visible, timeline_fraction_from_percent,
+    timeline_keyboard_time_for_key, timeline_slider_percent_from_bounds,
 };
 use super::primitives::frame_highlight_px;
 use super::settings_panel::{hex_to_subtitle_hsv, subtitle_hsv_to_hex};
@@ -3287,8 +3287,24 @@ mod frame_root_config {
     }
 
     #[test]
-    fn preview_canvas_wheel_zoom_multiplier_zooms_out_for_positive_delta() {
+    fn preview_canvas_wheel_zoom_multiplier_zooms_out_for_positive_normalized_delta() {
         let multiplier = preview_canvas_wheel_zoom_multiplier(1.00).expect("multiplier");
+
+        assert!(multiplier < 1.0);
+    }
+
+    #[test]
+    fn upward_line_scroll_zooms_in() {
+        let delta_y = preview_scroll_delta_y(&ScrollDelta::Lines(point(0.0, 1.0)));
+        let multiplier = preview_canvas_wheel_zoom_multiplier(delta_y).expect("multiplier");
+
+        assert!(multiplier > 1.0);
+    }
+
+    #[test]
+    fn downward_pixel_scroll_zooms_out() {
+        let delta_y = preview_scroll_delta_y(&ScrollDelta::Pixels(point(px(0.0), px(-100.0))));
+        let multiplier = preview_canvas_wheel_zoom_multiplier(delta_y).expect("multiplier");
 
         assert!(multiplier < 1.0);
     }
