@@ -22,12 +22,13 @@ use super::{
     FrameAppState, FrameRoot, FrameTextInputKind, INTERACTION_MOTION_DURATION, InteractiveElement,
     IntoElement, LEFT_COLUMN_SPAN, MouseButton, PANEL_HEADER_HEIGHT, ParentElement, PopoverState,
     RIGHT_COLUMN_SPAN, SETTINGS_CONTROL_HEIGHT, SURFACE_MOTION_DURATION, ScalePreset, ScrollHandle,
-    StatefulInteractiveElement, Styled, TITLEBAR_ACTION_ICON_SIZE, TITLEBAR_DIVIDER_HEIGHT,
-    TITLEBAR_HEIGHT, TITLEBAR_ICON_SIZE, TITLEBAR_LINUX_WINDOW_BUTTON_SIZE,
-    TITLEBAR_LINUX_WINDOW_CONTROLS_GAP, TITLEBAR_LINUX_WINDOW_CONTROLS_PADDING_X,
-    TITLEBAR_LOGO_SIZE, TITLEBAR_MACOS_NATIVE_TRAFFIC_LIGHT_PLACEHOLDER_WIDTH,
-    TITLEBAR_NAV_BUTTON_HEIGHT, TITLEBAR_PLATFORM_DIVIDER_HEIGHT, TITLEBAR_SEGMENT_HEIGHT,
-    TITLEBAR_TOP_PADDING, TITLEBAR_TRAFFIC_LIGHT_SIZE, TITLEBAR_WINDOWS_WINDOW_BUTTON_WIDTH,
+    StartAvailability, StatefulInteractiveElement, Styled, TITLEBAR_ACTION_ICON_SIZE,
+    TITLEBAR_DIVIDER_HEIGHT, TITLEBAR_HEIGHT, TITLEBAR_ICON_SIZE,
+    TITLEBAR_LINUX_WINDOW_BUTTON_SIZE, TITLEBAR_LINUX_WINDOW_CONTROLS_GAP,
+    TITLEBAR_LINUX_WINDOW_CONTROLS_PADDING_X, TITLEBAR_LOGO_SIZE,
+    TITLEBAR_MACOS_NATIVE_TRAFFIC_LIGHT_PLACEHOLDER_WIDTH, TITLEBAR_NAV_BUTTON_HEIGHT,
+    TITLEBAR_PLATFORM_DIVIDER_HEIGHT, TITLEBAR_SEGMENT_HEIGHT, TITLEBAR_TOP_PADDING,
+    TITLEBAR_TRAFFIC_LIGHT_SIZE, TITLEBAR_WINDOWS_WINDOW_BUTTON_WIDTH,
     TITLEBAR_WINDOWS_WINDOW_ICON_SIZE, TITLEBAR_WINDOWS_WINDOW_MAX_ICON_SIZE,
     UPDATE_INSTALL_WAIT_MESSAGE, UpdateInfo, UpdateStatus, WORKSPACE_COLUMNS, WORKSPACE_GAP,
     Window, WindowControlArea, assets, div, ease_in_out, format_total_size, mix_color,
@@ -300,29 +301,34 @@ pub(super) fn titlebar_start_button(
     window: &mut Window,
     cx: &mut Context<FrameRoot>,
 ) -> impl IntoElement {
+    let availability = state.start_availability();
+    let icon = if matches!(availability, StartAvailability::MissingOutputDirectory) {
+        assets::ICON_FOLDER_IMPORT
+    } else {
+        assets::ICON_PLAY
+    };
     action_button(
         "titlebar-start",
-        assets::ICON_PLAY,
-        Some(if state.is_processing {
-            "Processing"
-        } else {
-            "Start"
-        }),
-        if state.is_processing {
-            "Processing"
-        } else {
-            "Start conversion"
-        },
+        icon,
+        Some(availability.button_label()),
+        availability.accessibility_label(),
         ButtonVariant::Default,
-        state.can_start_conversion(),
+        availability.button_enabled(),
         palette,
         window,
         cx,
     )
-    .on_click(cx.listener(move |root, _: &ClickEvent, _window, cx| {
+    .on_click(cx.listener(move |root, _: &ClickEvent, window, cx| {
         cx.stop_propagation();
-        if state.can_start_conversion() {
-            root.start_selected_conversions(cx);
+        match availability {
+            StartAvailability::Ready => root.start_selected_conversions(cx),
+            StartAvailability::MissingOutputDirectory => {
+                FrameRoot::prompt_default_output_folder(window, cx);
+            }
+            StartAvailability::Processing
+            | StartAvailability::NoFiles
+            | StartAvailability::NoSelectedFiles
+            | StartAvailability::NoActionableFiles => {}
         }
     }))
 }

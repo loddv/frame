@@ -640,6 +640,27 @@ mod frame_root_conversion {
     }
 
     #[test]
+    fn output_directory_save_failure_opens_settings_with_recovery_message() {
+        let blocker = test_settings_path();
+        std::fs::create_dir_all(blocker.parent().expect("test path should have a parent"))
+            .expect("test settings parent should be created");
+        std::fs::write(&blocker, b"not a directory").expect("blocker file should be created");
+        let persistence = AppPersistence::from_settings_path(blocker.join("settings.json"));
+        let mut root = FrameRoot::new_with_persistence(persistence);
+
+        assert!(!root.apply_default_output_directory(PathBuf::from("/tmp/frame-output")));
+
+        assert!(root.settings_ui.is_open);
+        assert!(root.default_output_directory.is_none());
+        assert!(
+            root.settings_ui
+                .output_directory_error
+                .as_deref()
+                .is_some_and(|error| error.starts_with("Failed to save settings:"))
+        );
+    }
+
+    #[test]
     fn apply_max_concurrency_draft_updates_live_controller_limit() {
         let mut root = FrameRoot::new();
         root.settings_ui.max_concurrency_draft = "4".to_string();
