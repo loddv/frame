@@ -14,10 +14,10 @@ use super::preview_actions::{
     preview_overlay_keyboard_delta, preview_runtime_dimensions,
 };
 use super::preview_panel::{
-    centered_offset, preview_crop_visual_rect, preview_presented_frame, preview_shell_state,
-    preview_timeline_labels, preview_trim_enabled, preview_visual_controls_visible,
-    timeline_fraction_from_percent, timeline_keyboard_time_for_key,
-    timeline_slider_percent_from_bounds,
+    centered_offset, preview_crop_visual_rect, preview_presented_frame, preview_scroll_delta_y,
+    preview_shell_state, preview_timeline_labels, preview_trim_enabled,
+    preview_visual_controls_visible, timeline_fraction_from_percent,
+    timeline_keyboard_time_for_key, timeline_slider_percent_from_bounds,
 };
 use super::primitives::frame_highlight_px;
 use super::settings_panel::{hex_to_subtitle_hsv, subtitle_hsv_to_hex};
@@ -636,6 +636,27 @@ mod frame_root_conversion {
         assert_eq!(
             FrameRoot::new_with_persistence(persistence).default_output_directory,
             Some(PathBuf::from("/tmp/frame-output"))
+        );
+    }
+
+    #[test]
+    fn output_directory_save_failure_opens_settings_with_recovery_message() {
+        let blocker = test_settings_path();
+        std::fs::create_dir_all(blocker.parent().expect("test path should have a parent"))
+            .expect("test settings parent should be created");
+        std::fs::write(&blocker, b"not a directory").expect("blocker file should be created");
+        let persistence = AppPersistence::from_settings_path(blocker.join("settings.json"));
+        let mut root = FrameRoot::new_with_persistence(persistence);
+
+        assert!(!root.apply_default_output_directory(PathBuf::from("/tmp/frame-output")));
+
+        assert!(root.settings_ui.is_open);
+        assert!(root.default_output_directory.is_none());
+        assert!(
+            root.settings_ui
+                .output_directory_error
+                .as_deref()
+                .is_some_and(|error| error.starts_with("Failed to save settings:"))
         );
     }
 
@@ -3287,8 +3308,24 @@ mod frame_root_config {
     }
 
     #[test]
-    fn preview_canvas_wheel_zoom_multiplier_zooms_out_for_positive_delta() {
+    fn preview_canvas_wheel_zoom_multiplier_zooms_out_for_positive_normalized_delta() {
         let multiplier = preview_canvas_wheel_zoom_multiplier(1.00).expect("multiplier");
+
+        assert!(multiplier < 1.0);
+    }
+
+    #[test]
+    fn upward_line_scroll_zooms_in() {
+        let delta_y = preview_scroll_delta_y(&ScrollDelta::Lines(point(0.0, 1.0)));
+        let multiplier = preview_canvas_wheel_zoom_multiplier(delta_y).expect("multiplier");
+
+        assert!(multiplier > 1.0);
+    }
+
+    #[test]
+    fn downward_pixel_scroll_zooms_out() {
+        let delta_y = preview_scroll_delta_y(&ScrollDelta::Pixels(point(px(0.0), px(-100.0))));
+        let multiplier = preview_canvas_wheel_zoom_multiplier(delta_y).expect("multiplier");
 
         assert!(multiplier < 1.0);
     }
@@ -3573,6 +3610,17 @@ mod frame_window_options {
         let options = frame_window_options(Bounds::default());
 
         assert_eq!(options.app_id.as_deref(), Some(FRAME_APP_ID));
+    }
+
+    #[test]
+    fn sets_the_native_window_title() {
+        let options = frame_window_options(Bounds::default());
+        let titlebar = options
+            .titlebar
+            .as_ref()
+            .expect("Frame should configure native titlebar metadata");
+
+        assert_eq!(titlebar.title.as_deref(), Some("Frame"));
     }
 }
 

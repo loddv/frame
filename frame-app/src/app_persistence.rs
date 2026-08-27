@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use directories::ProjectDirs;
+use directories::{BaseDirs, ProjectDirs};
 use frame_core::types::DEFAULT_MAX_CONCURRENCY;
 use frame_updater::UpdateChannel;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -128,7 +128,13 @@ impl AppPersistence {
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
                 return self.load_legacy();
             }
-            Err(error) => return Err(AppPersistenceError::Io(error)),
+            Err(error) => {
+                return Err(AppPersistenceError::io(
+                    AppPersistenceOperation::ReadSettings,
+                    &self.settings_path,
+                    error,
+                ));
+            }
         };
 
         let persisted: PersistedAppSettings = serde_json::from_slice(&bytes)?;
@@ -145,18 +151,19 @@ impl AppPersistence {
         let persisted = PersistedAppSettings::from_app_settings(settings);
         let json = serde_json::to_vec_pretty(&persisted)?;
 
-        write_bytes_atomically(&self.settings_path, &json)?;
+        write_bytes_atomically_with_context(&self.settings_path, &json)
+            .map_err(AppPersistenceError::from_atomic_write)?;
 
         Ok(())
     }
 
     fn load_legacy(&self) -> Result<AppSettings, AppPersistenceError> {
         let mut settings = AppSettings::default();
+        let legacy_settings_path = self
+            .settings_path
+            .with_file_name(LEGACY_APP_SETTINGS_FILE_NAME);
 
-        match fs::read(
-            self.settings_path
-                .with_file_name(LEGACY_APP_SETTINGS_FILE_NAME),
-        ) {
+        match fs::read(&legacy_settings_path) {
             Ok(bytes) => {
                 let legacy: LegacyAppSettings = serde_json::from_slice(&bytes)?;
                 if let Some(max_concurrency) = legacy.max_concurrency {
@@ -167,16 +174,29 @@ impl AppPersistence {
                 }
             }
             Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-            Err(error) => return Err(AppPersistenceError::Io(error)),
+            Err(error) => {
+                return Err(AppPersistenceError::io(
+                    AppPersistenceOperation::ReadLegacySettings,
+                    &legacy_settings_path,
+                    error,
+                ));
+            }
         }
 
-        match fs::read(self.settings_path.with_file_name(LEGACY_PRESETS_FILE_NAME)) {
+        let legacy_presets_path = self.settings_path.with_file_name(LEGACY_PRESETS_FILE_NAME);
+        match fs::read(&legacy_presets_path) {
             Ok(bytes) => {
                 let legacy: LegacyPresetStore = serde_json::from_slice(&bytes)?;
                 settings.custom_presets = normalize_custom_presets(legacy.presets);
             }
             Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-            Err(error) => return Err(AppPersistenceError::Io(error)),
+            Err(error) => {
+                return Err(AppPersistenceError::io(
+                    AppPersistenceOperation::ReadLegacySettings,
+                    &legacy_presets_path,
+                    error,
+                ));
+            }
         }
 
         Ok(settings)
@@ -189,10 +209,71 @@ pub enum AppPersistenceError {
     ConfigDirectoryUnavailable,
     #[error("update installation is in progress")]
     InstallationInProgress,
-    #[error("failed to read or write app settings: {0}")]
-    Io(#[from] io::Error),
+    #[error("failed to {operation} at {path}: {source}")]
+    Io {
+        operation: AppPersistenceOperation,
+        path: String,
+        #[source]
+        source: io::Error,
+    },
     #[error("failed to parse app settings: {0}")]
     Json(#[from] serde_json::Error),
+}
+
+impl AppPersistenceError {
+    fn io(operation: AppPersistenceOperation, path: &Path, source: io::Error) -> Self {
+        Self::Io {
+            operation,
+            path: redacted_path(path),
+            source,
+        }
+    }
+
+    fn from_atomic_write(error: AtomicWriteError) -> Self {
+        Self::io(error.operation, &error.path, error.source)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AppPersistenceOperation {
+    ReadSettings,
+    ReadLegacySettings,
+    CreateSettingsDirectory,
+    CreateTemporaryFile,
+    WriteTemporaryFile,
+    SyncTemporaryFile,
+    ReplaceSettingsFile,
+}
+
+impl std::fmt::Display for AppPersistenceOperation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::ReadSettings => "read app settings",
+            Self::ReadLegacySettings => "read legacy app settings",
+            Self::CreateSettingsDirectory => "create the settings directory",
+            Self::CreateTemporaryFile => "create the temporary settings file",
+            Self::WriteTemporaryFile => "write the temporary settings file",
+            Self::SyncTemporaryFile => "sync the temporary settings file",
+            Self::ReplaceSettingsFile => "replace the settings file",
+        })
+    }
+}
+
+#[derive(Debug)]
+struct AtomicWriteError {
+    operation: AppPersistenceOperation,
+    path: PathBuf,
+    source: io::Error,
+}
+
+impl AtomicWriteError {
+    fn new(operation: AppPersistenceOperation, path: &Path, source: io::Error) -> Self {
+        Self {
+            operation,
+            path: path.to_path_buf(),
+            source,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -311,16 +392,46 @@ fn normalize_custom_presets(presets: Vec<PresetDefinition>) -> Vec<PresetDefinit
 }
 
 pub(crate) fn write_bytes_atomically(path: &Path, bytes: &[u8]) -> Result<(), io::Error> {
+    write_bytes_atomically_with_context(path, bytes).map_err(|error| error.source)
+}
+
+fn write_bytes_atomically_with_context(path: &Path, bytes: &[u8]) -> Result<(), AtomicWriteError> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
+        fs::create_dir_all(parent).map_err(|source| {
+            AtomicWriteError::new(
+                AppPersistenceOperation::CreateSettingsDirectory,
+                parent,
+                source,
+            )
+        })?;
     }
 
     let temp_path = temp_path_for(path);
-    let mut file = File::create(&temp_path)?;
-    file.write_all(bytes)?;
-    file.sync_all()?;
+    let mut file = File::create(&temp_path).map_err(|source| {
+        AtomicWriteError::new(
+            AppPersistenceOperation::CreateTemporaryFile,
+            &temp_path,
+            source,
+        )
+    })?;
+    file.write_all(bytes).map_err(|source| {
+        AtomicWriteError::new(
+            AppPersistenceOperation::WriteTemporaryFile,
+            &temp_path,
+            source,
+        )
+    })?;
+    file.sync_all().map_err(|source| {
+        AtomicWriteError::new(
+            AppPersistenceOperation::SyncTemporaryFile,
+            &temp_path,
+            source,
+        )
+    })?;
     drop(file);
-    replace_file(&temp_path, path)?;
+    replace_file(&temp_path, path).map_err(|source| {
+        AtomicWriteError::new(AppPersistenceOperation::ReplaceSettingsFile, path, source)
+    })?;
 
     #[cfg(unix)]
     if let Some(parent) = path.parent() {
@@ -332,14 +443,7 @@ pub(crate) fn write_bytes_atomically(path: &Path, bytes: &[u8]) -> Result<(), io
 
 #[cfg(not(windows))]
 fn replace_file(temp_path: &Path, final_path: &Path) -> Result<(), io::Error> {
-    match fs::rename(temp_path, final_path) {
-        Ok(()) => Ok(()),
-        Err(_) if final_path.exists() => {
-            fs::remove_file(final_path)?;
-            fs::rename(temp_path, final_path)
-        }
-        Err(error) => Err(error),
-    }
+    fs::rename(temp_path, final_path)
 }
 
 #[cfg(windows)]
@@ -382,6 +486,18 @@ fn temp_path_for(path: &Path) -> PathBuf {
     path.with_file_name(format!("{file_name}.tmp"))
 }
 
+fn redacted_path(path: &Path) -> String {
+    BaseDirs::new()
+        .and_then(|base_dirs| {
+            path.strip_prefix(base_dirs.home_dir())
+                .ok()
+                .map(|relative| Path::new("$HOME").join(relative))
+        })
+        .unwrap_or_else(|| path.to_path_buf())
+        .display()
+        .to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -403,6 +519,124 @@ mod tests {
             .expect("missing settings should load as defaults");
 
         assert_eq!(settings, AppSettings::default());
+    }
+
+    #[test]
+    fn load_error_identifies_the_read_operation_and_path() {
+        let path = test_settings_path();
+        fs::create_dir_all(&path).expect("settings path fixture should be a directory");
+
+        let error = AppPersistence::from_settings_path(&path)
+            .load()
+            .expect_err("reading a directory as settings should fail")
+            .to_string();
+
+        assert!(error.starts_with("failed to read app settings at "));
+        assert!(error.contains(path.to_string_lossy().as_ref()));
+    }
+
+    #[test]
+    fn legacy_load_error_identifies_the_file_that_failed() {
+        let path = test_settings_path();
+        let legacy_path = path.with_file_name(LEGACY_APP_SETTINGS_FILE_NAME);
+        fs::create_dir_all(&legacy_path).expect("legacy path fixture should be a directory");
+
+        let error = AppPersistence::from_settings_path(path)
+            .load()
+            .expect_err("reading a directory as legacy settings should fail")
+            .to_string();
+
+        assert!(error.starts_with("failed to read legacy app settings at "));
+        assert!(error.contains(legacy_path.to_string_lossy().as_ref()));
+    }
+
+    #[test]
+    fn save_error_identifies_a_blocked_settings_directory() {
+        let path = test_settings_path();
+        let parent = path
+            .parent()
+            .expect("test path should have parent")
+            .to_path_buf();
+        fs::create_dir_all(parent.parent().expect("test path should have grandparent"))
+            .expect("test root should be created");
+        fs::write(&parent, b"not a directory").expect("directory blocker should be written");
+
+        let error = AppPersistence::from_settings_path(path)
+            .save(&AppSettings::default())
+            .expect_err("a blocked settings directory should fail")
+            .to_string();
+
+        assert!(error.starts_with("failed to create the settings directory at "));
+        assert!(error.contains(parent.to_string_lossy().as_ref()));
+    }
+
+    #[test]
+    fn save_error_identifies_a_blocked_temporary_file() {
+        let path = test_settings_path();
+        let parent = path.parent().expect("test path should have parent");
+        fs::create_dir_all(parent).expect("test directory should be created");
+        let temp_path = temp_path_for(&path);
+        fs::create_dir(&temp_path).expect("temporary file blocker should be created");
+
+        let error = AppPersistence::from_settings_path(path)
+            .save(&AppSettings::default())
+            .expect_err("a blocked temporary file should fail")
+            .to_string();
+
+        assert!(error.starts_with("failed to create the temporary settings file at "));
+        assert!(error.contains(temp_path.to_string_lossy().as_ref()));
+    }
+
+    #[test]
+    fn write_error_identifies_the_temporary_file() {
+        let path = temp_path_for(&test_settings_path());
+        let error = AppPersistenceError::io(
+            AppPersistenceOperation::WriteTemporaryFile,
+            &path,
+            io::Error::new(io::ErrorKind::WriteZero, "test write failure"),
+        )
+        .to_string();
+
+        assert!(error.starts_with("failed to write the temporary settings file at "));
+        assert!(error.contains(path.to_string_lossy().as_ref()));
+        assert!(error.ends_with(": test write failure"));
+    }
+
+    #[test]
+    fn replacement_failure_keeps_the_existing_target_and_identifies_it() {
+        let path = test_settings_path();
+        fs::create_dir_all(&path).expect("settings target fixture should be a directory");
+        let marker_path = path.join("keep-me");
+        fs::write(&marker_path, b"existing data").expect("target marker should be written");
+
+        let error = AppPersistence::from_settings_path(&path)
+            .save(&AppSettings::default())
+            .expect_err("replacing a directory should fail")
+            .to_string();
+
+        assert!(error.starts_with("failed to replace the settings file at "));
+        assert!(error.contains(path.to_string_lossy().as_ref()));
+        assert_eq!(
+            fs::read(marker_path).expect("existing target should remain untouched"),
+            b"existing data"
+        );
+    }
+
+    #[test]
+    fn paths_inside_the_home_directory_do_not_expose_the_home_path() {
+        let home = BaseDirs::new().expect("home directory should be available");
+        let path = home.home_dir().join("Library/Frame/settings.json");
+
+        let displayed = redacted_path(&path);
+
+        assert_eq!(
+            displayed,
+            Path::new("$HOME")
+                .join("Library/Frame/settings.json")
+                .display()
+                .to_string()
+        );
+        assert!(!displayed.contains(home.home_dir().to_string_lossy().as_ref()));
     }
 
     #[test]

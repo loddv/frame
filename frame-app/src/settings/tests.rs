@@ -122,6 +122,86 @@ mod output_options {
     }
 
     #[test]
+    fn initialize_output_config_selects_first_audio_track() {
+        let mut config = ConversionConfig::default();
+        let metadata = SourceMetadata {
+            media_kind: Some(SourceKind::Video),
+            audio_tracks: vec![
+                AudioTrack {
+                    index: 2,
+                    codec: "aac".to_string(),
+                    ..AudioTrack::default()
+                },
+                AudioTrack {
+                    index: 4,
+                    codec: "ac3".to_string(),
+                    ..AudioTrack::default()
+                },
+            ],
+            ..SourceMetadata::default()
+        };
+
+        assert!(initialize_output_config(&mut config, Some(&metadata)));
+        assert_eq!(config.selected_audio_tracks, [2]);
+    }
+
+    #[test]
+    fn initialize_output_config_preserves_existing_audio_selection() {
+        let mut config = ConversionConfig {
+            selected_audio_tracks: vec![4],
+            ..ConversionConfig::default()
+        };
+        let metadata = SourceMetadata {
+            media_kind: Some(SourceKind::Video),
+            audio_tracks: vec![
+                AudioTrack {
+                    index: 2,
+                    codec: "aac".to_string(),
+                    ..AudioTrack::default()
+                },
+                AudioTrack {
+                    index: 4,
+                    codec: "ac3".to_string(),
+                    ..AudioTrack::default()
+                },
+            ],
+            ..SourceMetadata::default()
+        };
+
+        assert!(!initialize_output_config(&mut config, Some(&metadata)));
+        assert_eq!(config.selected_audio_tracks, [4]);
+    }
+
+    #[test]
+    fn initialize_output_config_keeps_audio_empty_without_source_tracks() {
+        let mut config = ConversionConfig::default();
+        let metadata = SourceMetadata {
+            media_kind: Some(SourceKind::Video),
+            ..SourceMetadata::default()
+        };
+
+        assert!(!initialize_output_config(&mut config, Some(&metadata)));
+        assert!(config.selected_audio_tracks.is_empty());
+    }
+
+    #[test]
+    fn initialize_output_config_does_not_select_audio_for_images() {
+        let mut config = ConversionConfig::default();
+        let metadata = SourceMetadata {
+            media_kind: Some(SourceKind::Image),
+            audio_tracks: vec![AudioTrack {
+                index: 1,
+                codec: "aac".to_string(),
+                ..AudioTrack::default()
+            }],
+            ..SourceMetadata::default()
+        };
+
+        assert!(initialize_output_config(&mut config, Some(&metadata)));
+        assert!(config.selected_audio_tracks.is_empty());
+    }
+
+    #[test]
     fn output_container_options_disable_video_targets_for_audio_sources() {
         let options = output_container_options(
             &ConversionConfig::default(),

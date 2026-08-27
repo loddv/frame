@@ -226,15 +226,27 @@ impl FrameRoot {
             };
 
             this.update(cx, |root, cx| {
-                root.settings_ui.output_directory_error = root
-                    .set_default_output_directory(path)
-                    .err()
-                    .map(|error| format!("Failed to save settings: {error}"));
+                root.apply_default_output_directory(path);
                 cx.notify();
             })
             .ok();
         })
         .detach();
+    }
+
+    pub(super) fn apply_default_output_directory(&mut self, path: std::path::PathBuf) -> bool {
+        match self.set_default_output_directory(path) {
+            Ok(()) => {
+                self.settings_ui.output_directory_error = None;
+                true
+            }
+            Err(error) => {
+                self.open_app_settings();
+                self.settings_ui.output_directory_error =
+                    Some(format!("Failed to save settings: {error}"));
+                false
+            }
+        }
     }
 
     pub(super) fn set_default_output_directory(

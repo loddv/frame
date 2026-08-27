@@ -158,6 +158,47 @@ pub struct FrameAppState {
     pub total_size_bytes: u64,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StartAvailability {
+    Ready,
+    Processing,
+    NoFiles,
+    NoSelectedFiles,
+    NoActionableFiles,
+    MissingOutputDirectory,
+}
+
+impl StartAvailability {
+    #[must_use]
+    pub const fn button_label(self) -> &'static str {
+        match self {
+            Self::Ready => "Start",
+            Self::Processing => "Processing",
+            Self::NoFiles => "Add a source",
+            Self::NoSelectedFiles => "Select files",
+            Self::NoActionableFiles => "Nothing pending",
+            Self::MissingOutputDirectory => "Choose output",
+        }
+    }
+
+    #[must_use]
+    pub const fn accessibility_label(self) -> &'static str {
+        match self {
+            Self::Ready => "Start conversion",
+            Self::Processing => "Conversion in progress",
+            Self::NoFiles => "Add a source to start a conversion",
+            Self::NoSelectedFiles => "Select at least one file to start a conversion",
+            Self::NoActionableFiles => "No selected files are ready to convert",
+            Self::MissingOutputDirectory => "Choose an output folder before starting",
+        }
+    }
+
+    #[must_use]
+    pub const fn button_enabled(self) -> bool {
+        matches!(self, Self::Ready | Self::MissingOutputDirectory)
+    }
+}
+
 impl Default for FrameAppState {
     fn default() -> Self {
         Self {
@@ -175,10 +216,24 @@ impl Default for FrameAppState {
 impl FrameAppState {
     #[must_use]
     pub const fn can_start_conversion(self) -> bool {
-        !self.is_processing
-            && self.selected_count > 0
-            && self.has_actionable_files
-            && self.has_default_output_directory
+        matches!(self.start_availability(), StartAvailability::Ready)
+    }
+
+    #[must_use]
+    pub const fn start_availability(self) -> StartAvailability {
+        if self.is_processing {
+            StartAvailability::Processing
+        } else if self.file_count == 0 {
+            StartAvailability::NoFiles
+        } else if self.selected_count == 0 {
+            StartAvailability::NoSelectedFiles
+        } else if !self.has_actionable_files {
+            StartAvailability::NoActionableFiles
+        } else if !self.has_default_output_directory {
+            StartAvailability::MissingOutputDirectory
+        } else {
+            StartAvailability::Ready
+        }
     }
 
     #[must_use]
@@ -224,6 +279,7 @@ mod tests {
         #[test]
         fn can_start_conversion_returns_true_when_selection_has_pending_work() {
             let state = FrameAppState {
+                file_count: 1,
                 selected_count: 1,
                 has_actionable_files: true,
                 has_default_output_directory: true,
@@ -248,12 +304,74 @@ mod tests {
         #[test]
         fn can_start_conversion_returns_false_without_default_output_directory() {
             let state = FrameAppState {
+                file_count: 1,
                 selected_count: 1,
                 has_actionable_files: true,
                 ..FrameAppState::default()
             };
 
             assert!(!state.can_start_conversion());
+        }
+
+        #[test]
+        fn start_availability_reports_each_blocker_in_priority_order() {
+            let ready = FrameAppState {
+                file_count: 1,
+                selected_count: 1,
+                has_actionable_files: true,
+                has_default_output_directory: true,
+                ..FrameAppState::default()
+            };
+
+            assert_eq!(ready.start_availability(), StartAvailability::Ready);
+            assert_eq!(
+                FrameAppState {
+                    is_processing: true,
+                    ..ready
+                }
+                .start_availability(),
+                StartAvailability::Processing
+            );
+            assert_eq!(
+                FrameAppState::default().start_availability(),
+                StartAvailability::NoFiles
+            );
+            assert_eq!(
+                FrameAppState {
+                    selected_count: 0,
+                    ..ready
+                }
+                .start_availability(),
+                StartAvailability::NoSelectedFiles
+            );
+            assert_eq!(
+                FrameAppState {
+                    has_actionable_files: false,
+                    ..ready
+                }
+                .start_availability(),
+                StartAvailability::NoActionableFiles
+            );
+            assert_eq!(
+                FrameAppState {
+                    has_default_output_directory: false,
+                    ..ready
+                }
+                .start_availability(),
+                StartAvailability::MissingOutputDirectory
+            );
+        }
+
+        #[test]
+        fn missing_output_directory_is_an_actionable_start_state() {
+            let availability = StartAvailability::MissingOutputDirectory;
+
+            assert!(availability.button_enabled());
+            assert_eq!(availability.button_label(), "Choose output");
+            assert_eq!(
+                availability.accessibility_label(),
+                "Choose an output folder before starting"
+            );
         }
 
         #[test]

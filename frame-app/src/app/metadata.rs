@@ -47,13 +47,15 @@ impl FrameRoot {
             this.update(cx, |root, cx| {
                 match result {
                     Ok(metadata) => {
+                        if normalize_selected_config
+                            && !root.update_installation_in_progress()
+                            && let Some(file) = root.file_queue.file_by_id_mut(&file_id)
+                        {
+                            initialize_output_config(&mut file.config, Some(&metadata));
+                        }
                         root.source_metadata.mark_ready(file_id.clone(), metadata);
                         if root.file_queue.selected_file_id() == Some(file_id.as_str()) {
                             let selected_metadata = root.selected_source_metadata();
-                            if normalize_selected_config && !root.update_installation_in_progress()
-                            {
-                                root.normalize_selected_config(selected_metadata.as_ref());
-                            }
                             root.resolve_selected_settings_tab(selected_metadata.as_ref());
                         }
                     }
