@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Default Audio Selection:** Selects the first available audio track after probing each new source, while preserving restored sessions and explicit track choices. Resolves [#151](https://github.com/66HEX/frame/issues/151).
+- **Conversion Start Guidance:** Replaces the unexplained disabled Start button with a specific reason for each blocked state and opens the output-folder chooser when that is the missing step. Resolves [#161](https://github.com/66HEX/frame/issues/161).
+- **Linux Window Title:** Sets `Frame` as the native window title so X11 desktops and window-management tools no longer display a blank application name. Resolves [#168](https://github.com/66HEX/frame/issues/168).
+- **Preview Wheel Zoom:** Uses the standard wheel direction, with upward scrolling zooming in and downward scrolling zooming out. Resolves [#160](https://github.com/66HEX/frame/issues/160).
+- **Settings Persistence Diagnostics:** Reports the failing read or write operation and a home-directory-redacted path, and preserves the existing settings target when atomic replacement fails. Improves diagnostics for [#150](https://github.com/66HEX/frame/issues/150).
+
 ## [0.33.0] - 2026-08-04
 
 ### Added
