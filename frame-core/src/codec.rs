@@ -1,6 +1,7 @@
 use crate::types::ConversionConfig;
 use crate::utils::{
-    is_nvenc_codec, is_svt_av1_codec, is_videotoolbox_codec, map_nvenc_preset, map_svt_av1_preset,
+    is_nvenc_codec, is_svt_av1_codec, is_videotoolbox_codec, is_vaapi_codec, map_nvenc_preset,
+    map_svt_av1_preset, map_vaapi_preset,
 };
 
 pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
@@ -12,6 +13,7 @@ pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
     let is_nvenc = is_nvenc_codec(&config.video_codec);
     let is_svt_av1 = is_svt_av1_codec(&config.video_codec);
     let is_videotoolbox = is_videotoolbox_codec(&config.video_codec);
+    let is_vaapi = is_vaapi_codec(&config.video_codec);
 
     args.push("-c:v".to_string());
     args.push(config.video_codec.clone());
@@ -34,7 +36,9 @@ pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
     if config.video_bitrate_mode == "bitrate" {
         args.push("-b:v".to_string());
         args.push(format!("{}k", config.video_bitrate));
-    } else if is_nvenc {
+    } else if is_nvenc || is_vaapi {
+        // For NVENC and VAAPI hardware encoders we prefer a quality-based VBR path.
+        // Convert Frame's quality (0..100) into encoder CQ range (1..51) similar to NVENC handling.
         let cq = 52_u32.saturating_sub(config.quality / 2).clamp(1, 51);
         args.push("-rc:v".to_string());
         args.push("vbr".to_string());
@@ -54,6 +58,8 @@ pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
             map_nvenc_preset(&config.preset)
         } else if is_svt_av1 {
             map_svt_av1_preset(&config.preset)
+        } else if is_vaapi {
+            map_vaapi_preset(&config.preset)
         } else {
             config.preset.clone()
         };
