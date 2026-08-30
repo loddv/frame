@@ -81,7 +81,9 @@ details, tier suggestions, and a launch checklist.
   - `gif` palette output
   - **Hardware Acceleration:** macOS bundles include VideoToolbox encoders
     (`h264_videotoolbox`, `hevc_videotoolbox`); Windows bundles include NVIDIA
-    NVENC encoders (`h264_nvenc`, `hevc_nvenc`, `av1_nvenc`). Linux bundles use
+    NVENC encoders (`h264_nvenc`, `hevc_nvenc`, `av1_nvenc`). 
+    VAAPI encodere (`h264_vaapi`).
+    Linux bundles use
     software encoders.
 - **Image Encoders:** `png`, `mjpeg` (JPEG), `libwebp` (WebP), `bmp`, `tiff`.
 - **Audio Encoders:** `aac`, `ac3`, `libopus`, `mp3`, `mp2`, `alac`, `flac`,

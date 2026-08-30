@@ -1525,18 +1525,23 @@ mod video_options {
 
         assert!(codec_option(&options, "h264_videotoolbox").is_none());
         assert!(codec_option(&options, "h264_nvenc").is_none());
+        assert!(codec_option(&options, "h264_vaapi").is_none());
     }
 
     #[test]
     fn video_codec_options_show_available_hardware_encoders() {
         let encoders = AvailableEncoders {
             h264_videotoolbox: true,
+            h264_nvenc: true,
+            h264_vaapi: true,
             ..AvailableEncoders::default()
         };
 
         let options = video_codec_options(&ConversionConfig::default(), &encoders, false);
 
         assert!(codec_option(&options, "h264_videotoolbox").is_some());
+        assert!(codec_option(&options, "h264_nvenc").is_some());
+        assert!(codec_option(&options, "h264_vaapi").is_some());
     }
 
     #[test]
