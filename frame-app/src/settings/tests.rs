@@ -1542,6 +1542,12 @@ mod video_options {
         assert!(codec_option(&options, "h264_videotoolbox").is_some());
         assert!(codec_option(&options, "h264_nvenc").is_some());
         assert!(codec_option(&options, "h264_vaapi").is_some());
+
+        let options = video_codec_options(&ConversionConfig::default(), &encoders, false);
+
+        assert!(codec_option(&options, "h264_videotoolbox").is_some());
+        assert!(codec_option(&options, "h264_nvenc").is_some());
+        assert!(codec_option(&options, "h264_vaapi").is_some());
     }
 
     #[test]

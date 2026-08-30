@@ -15,6 +15,7 @@ pub struct AvailableEncoders {
     pub pcm_bluray: bool,
     pub h264_videotoolbox: bool,
     pub h264_nvenc: bool,
+    pub h264_vaapi: bool,
     pub hevc_videotoolbox: bool,
     pub hevc_nvenc: bool,
     pub av1_nvenc: bool,
@@ -71,6 +72,7 @@ pub fn parse_available_encoders(ffmpeg_encoders_stdout: impl AsRef<str>) -> Avai
         pcm_bluray: encoder_list_contains(stdout, "pcm_bluray"),
         h264_videotoolbox: encoder_list_contains(stdout, "h264_videotoolbox"),
         h264_nvenc: encoder_list_contains(stdout, "h264_nvenc"),
+        h264_vaapi: encoder_list_contains(stdout, "h264_vaapi"),
         hevc_videotoolbox: encoder_list_contains(stdout, "hevc_videotoolbox"),
         hevc_nvenc: encoder_list_contains(stdout, "hevc_nvenc"),
         av1_nvenc: encoder_list_contains(stdout, "av1_nvenc"),
@@ -135,10 +137,11 @@ mod tests {
     fn parse_available_encoders_detects_ffmpeg_encoder_rows() {
         let stdout = "\
 Encoders:
- V..... h264_videotoolbox VideoToolbox H.264 Encoder
- V..... hevc_videotoolbox VideoToolbox H.265 Encoder
- V....D h264_nvenc NVIDIA NVENC H.264 encoder
- V....D hevc_nvenc NVIDIA NVENC hevc encoder
+V..... h264_videotoolbox VideoToolbox H.264 Encoder
+    V..... h264_vaapi VAAPI H.264 encoder
+    V..... hevc_videotoolbox VideoToolbox H.265 Encoder
+    V....D h264_nvenc NVIDIA NVENC H.264 encoder
+    V....D hevc_nvenc NVIDIA NVENC hevc encoder
  V....D av1_nvenc NVIDIA NVENC av1 encoder
  A..... libfdk_aac Fraunhofer FDK AAC
  A..... libmp3lame libmp3lame MP3
@@ -157,9 +160,10 @@ Encoders:
                 mp2: true,
                 dvbsub: true,
                 pcm_bluray: true,
-                h264_videotoolbox: true,
-                h264_nvenc: true,
-                hevc_videotoolbox: true,
+h264_videotoolbox: true,
+            h264_nvenc: true,
+            h264_vaapi: true,
+            hevc_videotoolbox: true,
                 hevc_nvenc: true,
                 av1_nvenc: true,
                 libfdk_aac: true,
