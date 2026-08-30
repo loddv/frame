@@ -64,6 +64,11 @@ pub fn is_videotoolbox_codec(codec: &str) -> bool {
 }
 
 #[must_use]
+pub fn is_vaapi_codec(codec: &str) -> bool {
+    matches!(codec, "h264_vaapi" | "hevc_vaapi" | "av1_vaapi")
+}
+
+#[must_use]
 pub fn map_nvenc_preset(preset: &str) -> String {
     match preset {
         "default" => "default".to_string(),
@@ -89,6 +94,20 @@ pub fn map_svt_av1_preset(preset: &str) -> String {
         "slower" => "4".to_string(),
         "veryslow" => "2".to_string(),
         _ => "8".to_string(),
+    }
+}
+
+#[must_use]
+pub fn map_vaapi_preset(preset: &str) -> String {
+    // VAAPI presets vary by driver; keep mapping conservative and similar to NVENC mapping.
+    match preset {
+        "default" => "default".to_string(),
+        "fast" | "medium" | "slow" | "p1" | "p2" | "p3" | "p4" | "p5" | "p6" | "p7" => {
+            preset.to_string()
+        }
+        "ultrafast" | "superfast" | "veryfast" | "faster" => "fast".to_string(),
+        "slower" | "veryslow" => "slow".to_string(),
+        _ => "medium".to_string(),
     }
 }
 
@@ -123,6 +142,13 @@ pub fn get_hwaccel_args(video_codec: &str) -> Vec<String> {
         ]
     } else if is_videotoolbox_codec(video_codec) {
         vec!["-hwaccel".to_string(), "videotoolbox".to_string()]
+    } else if is_vaapi_codec(video_codec) {
+        vec![
+            "-hwaccel".to_string(),
+            "vaapi".to_string(),
+            "-hwaccel_output_format".to_string(),
+            "vaapi".to_string(),
+        ]
     } else {
         vec![]
     }
