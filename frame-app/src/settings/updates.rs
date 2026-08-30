@@ -957,6 +957,7 @@ pub fn normalize_video_config(
         config.video_codec = "gif".to_string();
         config.video_bitrate_mode = DEFAULT_VIDEO_BITRATE_MODE.to_string();
         config.hw_decode = false;
+        config.vaapi_allow_sw = false;
         config.nvenc_spatial_aq = false;
         config.nvenc_temporal_aq = false;
         config.videotoolbox_allow_sw = false;

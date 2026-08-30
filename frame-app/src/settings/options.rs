@@ -1050,7 +1050,9 @@ const fn video_codec_capability_available(
         VideoCodecCapability::H264Vaapi => available_encoders.h264_vaapi,
         VideoCodecCapability::HevcVideotoolbox => available_encoders.hevc_videotoolbox,
         VideoCodecCapability::HevcNvenc => available_encoders.hevc_nvenc,
+        VideoCodecCapability::HevcVaapi => available_encoders.hevc_vaapi,
         VideoCodecCapability::Av1Nvenc => available_encoders.av1_nvenc,
+        VideoCodecCapability::Av1Vaapi => available_encoders.av1_vaapi,
     }
 }
 
@@ -1060,7 +1062,7 @@ pub fn is_nvenc_video_codec(codec: &str) -> bool {
 }
 
 pub fn is_vaapi_video_codec(codec: &str) -> bool {
-    matches!(codec, "h264_vaapi")
+    matches!(codec, "h264_vaapi" | "hevc_vaapi" | "av1_vaapi")
 }
 
 #[must_use]

@@ -1076,7 +1076,9 @@ pub(super) enum VideoCodecCapability {
     H264Vaapi,
     HevcVideotoolbox,
     HevcNvenc,
+    HevcVaapi,
     Av1Nvenc,
+    Av1Vaapi,
 }
 
 pub(super) const VIDEO_CODEC_DEFINITIONS: [VideoCodecDefinition; 13] = [
@@ -1127,7 +1129,7 @@ pub(super) const VIDEO_CODEC_DEFINITIONS: [VideoCodecDefinition; 13] = [
     },
     VideoCodecDefinition {
         codec: "h264_vaapi",
-        label: "H.264 (mesa VAAPI)",
+        label: "H.264/AVC (VAAPI) (codec h264)",
         capability: Some(VideoCodecCapability::H264Vaapi),
     },
     VideoCodecDefinition {
@@ -1136,9 +1138,19 @@ pub(super) const VIDEO_CODEC_DEFINITIONS: [VideoCodecDefinition; 13] = [
         capability: Some(VideoCodecCapability::HevcVideotoolbox),
     },
     VideoCodecDefinition {
+        codec: "hevc_vaapi",
+        label: "H.265/HEVC (VAAPI) (codec hevc)",
+        capability: Some(VideoCodecCapability::HevcVaapi),
+    },
+    VideoCodecDefinition {
         codec: "hevc_nvenc",
         label: "H.265 (NVIDIA)",
         capability: Some(VideoCodecCapability::HevcNvenc),
+    },
+    VideoCodecDefinition {
+        codec: "av1_vaapi",
+        label: "AV1 (VAAPI) (codec av1)",
+        capability: Some(VideoCodecCapability::Av1Vaapi),
     },
     VideoCodecDefinition {
         codec: "av1_nvenc",

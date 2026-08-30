@@ -20,6 +20,7 @@ pub struct AvailableEncoders {
     pub hevc_videotoolbox: bool,
     pub hevc_nvenc: bool,
     pub av1_nvenc: bool,
+    pub av1_vaapi: bool,
     pub libfdk_aac: bool,
     pub libmp3lame: bool,
 }
@@ -78,6 +79,7 @@ pub fn parse_available_encoders(ffmpeg_encoders_stdout: impl AsRef<str>) -> Avai
         hevc_videotoolbox: encoder_list_contains(stdout, "hevc_videotoolbox"),
         hevc_nvenc: encoder_list_contains(stdout, "hevc_nvenc"),
         av1_nvenc: encoder_list_contains(stdout, "av1_nvenc"),
+        av1_vaapi: encoder_list_contains(stdout, "av1_vaapi"),
         libfdk_aac: encoder_list_contains(stdout, "libfdk_aac"),
         libmp3lame: encoder_list_contains(stdout, "libmp3lame"),
     }
@@ -113,12 +115,18 @@ pub fn parse_available_filters(ffmpeg_filters_stdout: impl AsRef<str>) -> Availa
 
 fn encoder_list_contains(stdout: &str, name: &str) -> bool {
     let pattern = format!(r"(?m)^\s*[A-Z.]+\s+{}\s+", regex::escape(name));
-    Regex::new(&pattern).map_or_else(|_| stdout.contains(name), |re| re.is_match(stdout))
+    Regex::new(&pattern).map_or_else(
+        |_| stdout.contains(name),
+        |re| re.is_match(stdout)
+    )
 }
 
 fn filter_list_contains(stdout: &str, name: &str) -> bool {
     let pattern = format!(r"(?m)^\s*[A-Z.|]+\s+{}\s+", regex::escape(name));
-    Regex::new(&pattern).map_or_else(|_| stdout.contains(name), |re| re.is_match(stdout))
+    Regex::new(&pattern).map_or_else(
+        |_| stdout.contains(name),
+        |re| re.is_match(stdout)
+    )
 }
 
 #[cfg(test)]
@@ -137,7 +145,8 @@ mod tests {
 
     #[test]
     fn parse_available_encoders_detects_ffmpeg_encoder_rows() {
-        let stdout = "\
+        let stdout =
+            "\
 Encoders:
 V..... h264_videotoolbox VideoToolbox H.264 Encoder
     V..... h264_vaapi VAAPI H.264 encoder
@@ -155,29 +164,28 @@ V..... h264_videotoolbox VideoToolbox H.264 Encoder
 
         let actual = parse_available_encoders(stdout);
 
-        assert_eq!(
-            actual,
-            AvailableEncoders {
-                mpeg2video: true,
-                mp2: true,
-                dvbsub: true,
-                pcm_bluray: true,
-h264_videotoolbox: true,
+        assert_eq!(actual, AvailableEncoders {
+            mpeg2video: true,
+            mp2: true,
+            dvbsub: true,
+            pcm_bluray: true,
+            h264_videotoolbox: true,
             h264_nvenc: true,
             h264_vaapi: true,
             hevc_vaapi: true,
-                hevc_videotoolbox: true,
-                hevc_nvenc: true,
-                av1_nvenc: true,
-                libfdk_aac: true,
-                libmp3lame: true,
-            }
-        );
+            hevc_videotoolbox: true,
+            hevc_nvenc: true,
+            av1_nvenc: true,
+            av1_vaapi: true,
+            libfdk_aac: true,
+            libmp3lame: true,
+        });
     }
 
     #[test]
     fn parse_available_encoders_rejects_substring_matches() {
-        let stdout = "\
+        let stdout =
+            "\
 Encoders:
  V..... not_h264_nvenc should not match
  A..... libmp3lame_extra should not match
@@ -190,7 +198,8 @@ Encoders:
 
     #[test]
     fn parse_available_filters_detects_ffmpeg_filter_rows() {
-        let stdout = "\
+        let stdout =
+            "\
 Filters:
  TSC eq                V->V       Adjust brightness, contrast, gamma, and saturation.
  T.C hue               V->V       Adjust the hue and saturation.
@@ -216,36 +225,34 @@ Filters:
 
         let actual = parse_available_filters(stdout);
 
-        assert_eq!(
-            actual,
-            AvailableFilters {
-                eq: true,
-                hue: true,
-                colortemperature: true,
-                unsharp: true,
-                gblur: true,
-                hqdn3d: true,
-                deband: true,
-                vignette: true,
-                bwdif: true,
-                highpass: true,
-                lowpass: true,
-                afftdn: true,
-                deesser: true,
-                bass: true,
-                treble: true,
-                acompressor: true,
-                loudnorm: true,
-                volume: true,
-                stereotools: true,
-                alimiter: true,
-            }
-        );
+        assert_eq!(actual, AvailableFilters {
+            eq: true,
+            hue: true,
+            colortemperature: true,
+            unsharp: true,
+            gblur: true,
+            hqdn3d: true,
+            deband: true,
+            vignette: true,
+            bwdif: true,
+            highpass: true,
+            lowpass: true,
+            afftdn: true,
+            deesser: true,
+            bass: true,
+            treble: true,
+            acompressor: true,
+            loudnorm: true,
+            volume: true,
+            stereotools: true,
+            alimiter: true,
+        });
     }
 
     #[test]
     fn parse_available_filters_rejects_substring_matches() {
-        let stdout = "\
+        let stdout =
+            "\
 Filters:
  ... not_eq             V->V should not match
  ... deesser_extra      A->A should not match

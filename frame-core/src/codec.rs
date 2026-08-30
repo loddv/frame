@@ -36,14 +36,31 @@ pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
     if config.video_bitrate_mode == "bitrate" {
         args.push("-b:v".to_string());
         args.push(format!("{}k", config.video_bitrate));
-    } else if is_nvenc || is_vaapi {
-        // For NVENC and VAAPI hardware encoders we prefer a quality-based VBR path.
+        # For NVENC or VAAPI hardware encoders we prefer a quality-based VBR path.
+    } else if is_vaapi {
+        // For VAAPI hardware encoders we prefer a quality-based VBR path.
         // Convert Frame's quality (0..100) into encoder CQ range (1..51) similar to NVENC handling.
         let cq = 52_u32.saturating_sub(config.quality / 2).clamp(1, 51);
         args.push("-rc:v".to_string());
         args.push("vbr".to_string());
         args.push("-cq:v".to_string());
         args.push(cq.to_string());
+    } else if is_nvenc {
+        // For NVENC hardware encoders we prefer a quality-based VBR path.
+        // Convert Frame's quality (0..100) into encoder CQ range (1..51).
+        let cq = 52_u32.saturating_sub(config.quality / 2).clamp(1, 51);
+        args.push("-rc:v".to_string());
+        args.push("vbr".to_string());
+        args.push("-cq:v".to_string());
+        args.push(cq.to_string());
+    } else if is_svt_av1 {
+        // For SVT-AV1 we prefer a quality-based VBR path.
+        // Convert Frame's quality (0..100) into encoder QP range (0..63).
+        let qp = 63_u32.saturating_sub(config.quality * 63 / 100).clamp(0, 63);
+        args.push("-rc:v".to_string());
+        args.push("vbr".to_string());
+        args.push("-qp:v".to_string());
+        args.push(qp.to_string());
     } else if is_videotoolbox {
         args.push("-q:v".to_string());
         args.push(config.quality.to_string());
@@ -75,6 +92,11 @@ pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
             args.push("-temporal_aq".to_string());
             args.push("1".to_string());
         }
+    }
+    
+    if is_vaapi && config.vaapi_allow_sw {
+        args.push("-allow_sw".to_string());
+        args.push("1".to_string());
     }
 
     if is_videotoolbox && config.videotoolbox_allow_sw {

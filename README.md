@@ -82,7 +82,7 @@ details, tier suggestions, and a launch checklist.
   - **Hardware Acceleration:** macOS bundles include VideoToolbox encoders
     (`h264_videotoolbox`, `hevc_videotoolbox`); Windows bundles include NVIDIA
     NVENC encoders (`h264_nvenc`, `hevc_nvenc`, `av1_nvenc`). 
-    VAAPI encodere (`h264_vaapi`).
+    VAAPI encodere (`h264_vaapi`, `hevc_vaapi`, `av1_vaapi`).
     Linux bundles use
     software encoders.
 - **Image Encoders:** `png`, `mjpeg` (JPEG), `libwebp` (WebP), `bmp`, `tiff`.
