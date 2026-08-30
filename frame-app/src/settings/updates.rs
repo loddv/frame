@@ -15,7 +15,8 @@ use super::{
     },
     options::{
         first_allowed_video_codec, first_allowed_video_pixel_format, first_allowed_video_preset,
-        is_hardware_video_codec, is_nvenc_video_codec, is_video_preset_allowed,
+        is_hardware_video_codec, is_nvenc_video_codec, 
+        is_vaapi_video_codec,is_video_preset_allowed,
         is_videotoolbox_video_codec, mp2_original_channels_are_unsupported, normalized_hex_color,
     },
     rules::{
@@ -722,7 +723,14 @@ pub fn apply_nvenc_temporal_aq(config: &mut ConversionConfig, enabled: bool) -> 
     config.nvenc_temporal_aq = enabled;
     true
 }
+pub fn apply_vaapi_allow_sw(config: &mut ConversionConfig, enabled: bool) -> bool {
+    if !is_vaapi_video_codec(&config.video_codec) || config.vaapi_allow_sw == enabled {
+        return false;
+    }
 
+    config.vaapi_allow_sw = enabled;
+    true
+}
 pub fn apply_videotoolbox_allow_sw(config: &mut ConversionConfig, enabled: bool) -> bool {
     if !is_videotoolbox_video_codec(&config.video_codec) || config.videotoolbox_allow_sw == enabled
     {
@@ -978,6 +986,9 @@ pub fn normalize_video_config(
         config.nvenc_spatial_aq = false;
         config.nvenc_temporal_aq = false;
     }
+    if !is_vaapi_video_codec(&config.video_codec) {
+        config.vaapi_allow_sw = false;
+    }
     if !is_videotoolbox_video_codec(&config.video_codec) {
         config.videotoolbox_allow_sw = false;
     }
@@ -1075,6 +1086,7 @@ fn reset_video_filter_settings(config: &mut ConversionConfig) {
     config.hw_decode = false;
     config.nvenc_spatial_aq = false;
     config.nvenc_temporal_aq = false;
+    config.vaapi_allow_sw = false;
     config.videotoolbox_allow_sw = false;
     config.video_filters = super::model::VideoFiltersConfig::default();
 }

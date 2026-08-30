@@ -678,6 +678,7 @@ pub struct ConversionConfig {
     pub gif_loop: u16,
     pub nvenc_spatial_aq: bool,
     pub nvenc_temporal_aq: bool,
+    pub vaapi_allow_sw: bool,
     pub videotoolbox_allow_sw: bool,
     pub hw_decode: bool,
 }
@@ -739,6 +740,7 @@ impl Default for ConversionConfig {
             gif_loop: DEFAULT_GIF_LOOP,
             nvenc_spatial_aq: false,
             nvenc_temporal_aq: false,
+            vaapi_allow_sw: false,
             videotoolbox_allow_sw: false,
             hw_decode: false,
         }
@@ -1071,6 +1073,7 @@ pub(super) enum VideoCodecCapability {
     Mpeg2video,
     H264Videotoolbox,
     H264Nvenc,
+    H264Vaapi,
     HevcVideotoolbox,
     HevcNvenc,
     Av1Nvenc,
@@ -1121,6 +1124,11 @@ pub(super) const VIDEO_CODEC_DEFINITIONS: [VideoCodecDefinition; 12] = [
         codec: "h264_nvenc",
         label: "H.264 (NVIDIA)",
         capability: Some(VideoCodecCapability::H264Nvenc),
+    },
+    VideoCodecDefinition {
+        codec: "h264_vaapi",
+        label: "H.264 (mesa VAAPI)",
+        capability: Some(VideoCodecCapability::H264Vaapi),
     },
     VideoCodecDefinition {
         codec: "hevc_videotoolbox",

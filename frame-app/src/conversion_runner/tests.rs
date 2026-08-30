@@ -181,6 +181,7 @@ fn core_config_from_gpui_preserves_active_conversion_fields() {
         gif_loop: 3,
         nvenc_spatial_aq: false,
         nvenc_temporal_aq: false,
+        vaapi_allow_sw: false,
         videotoolbox_allow_sw: false,
         hw_decode: false,
     };

@@ -3979,8 +3979,10 @@ mod preview_shell {
             pcm_bluray: false,
             h264_videotoolbox: false,
             h264_nvenc: false,
+            h264_vaapi: false,
             hevc_videotoolbox: false,
             hevc_nvenc: false,
+            h
             av1_nvenc: false,
             libfdk_aac: false,
             libmp3lame: false,

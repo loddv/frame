@@ -369,6 +369,8 @@ pub struct ConversionConfig {
     #[serde(default)]
     pub nvenc_temporal_aq: bool,
     #[serde(default)]
+    pub vaapi_allow_sw: bool,
+    #[serde(default)]
     pub videotoolbox_allow_sw: bool,
     #[serde(default = "default_hw_decode")]
     pub hw_decode: bool,

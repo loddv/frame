@@ -135,6 +135,14 @@ pub(in crate::app) fn settings_video_tab(
                 cx,
             ))
         })
+        .when(is_vaapi_video_codec(&config.video_codec), |this| {
+            this.child(settings_video_hw_section(
+                config,
+                settings_disabled,
+                palette,
+                cx,
+            ))
+        })
         .when(is_videotoolbox_video_codec(&config.video_codec), |this| {
             this.child(settings_video_videotoolbox_section(
                 config,
@@ -881,6 +889,32 @@ fn settings_video_nvenc_section(
                 }
             },
         ))
+}
+fn settings_video_vaapi_section(
+    config: &ConversionConfig,
+    disabled: bool,
+    palette: &'static theme::ThemePalette,
+    cx: &Context<FrameRoot>,
+) -> gpui::Div {
+    settings_section("VAAPI options", palette).child(settings_video_checkbox_row(
+        "video-vaapi-allow-sw",
+        "Allow software fallback",
+        "Drop back to CPU encoding if hardware fails",
+        config.vaapi_allow_sw,
+        disabled,
+        palette,
+        cx,
+        move |root, _event, _window, cx| {
+            if disabled {
+                return;
+            }
+            if root.update_selected_config(|config| {
+                apply_vaapi_allow_sw(config, !config.vaapi_allow_sw)
+            }) {
+                cx.notify();
+            }
+        },
+    ))
 }
 
 fn settings_video_videotoolbox_section(

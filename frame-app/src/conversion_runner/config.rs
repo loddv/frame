@@ -97,6 +97,7 @@ pub fn core_config_from_gpui(config: &GpuiConversionConfig) -> CoreConversionCon
         overlay: config.overlay.as_ref().map(core_overlay_from_gpui),
         nvenc_spatial_aq: config.nvenc_spatial_aq,
         nvenc_temporal_aq: config.nvenc_temporal_aq,
+        vaapi_allow_sw: config.vaapi_allow_sw,
         videotoolbox_allow_sw: config.videotoolbox_allow_sw,
         hw_decode: config.hw_decode,
         pixel_format: non_empty_or(&config.pixel_format, DEFAULT_PIXEL_FORMAT),

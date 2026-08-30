@@ -1576,6 +1576,7 @@ fn base_config(container: &str, video_codec: &str) -> ConversionConfig {
         overlay: None,
         nvenc_spatial_aq: false,
         nvenc_temporal_aq: false,
+        vaapi_allow_sw: false,
         videotoolbox_allow_sw: false,
         hw_decode: false,
         pixel_format: "auto".to_string(),
