@@ -136,7 +136,7 @@ pub(in crate::app) fn settings_video_tab(
             ))
         })
         .when(is_vaapi_video_codec(&config.video_codec), |this| {
-            this.child(settings_video_hw_section(
+            this.child(settings_video_vaapi_section(
                 config,
                 settings_disabled,
                 palette,
