@@ -45,7 +45,6 @@ pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
         args.push("CQP".to_string());
         args.push("-global_quality".to_string());
         args.push(cq.to_string());
-    }
     } else if is_nvenc {
         // For NVENC hardware encoders we prefer a quality-based VBR path.
         // Convert Frame's quality (0..100) into encoder CQ range (1..51).
