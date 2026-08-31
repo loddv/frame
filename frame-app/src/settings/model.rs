@@ -989,7 +989,11 @@ pub(super) struct AudioCodecDefinition {
     pub(super) label: &'static str,
 }
 
-pub(super) const AUDIO_CODEC_DEFINITIONS: [AudioCodecDefinition; 9] = [
+pub(super) const AUDIO_CODEC_DEFINITIONS: [AudioCodecDefinition; 10] = [
+    AudioCodecDefinition {
+        codec: "copy",
+        label: "Copy / Original",
+    },
     AudioCodecDefinition {
         codec: "aac",
         label: "AAC / Stereo",

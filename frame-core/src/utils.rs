@@ -155,6 +155,8 @@ pub fn get_hwaccel_args(video_codec: &str) -> Vec<String> {
         vec!["-hwaccel".to_string(), "videotoolbox".to_string()]
     } else if is_vaapi_codec(video_codec) {
         vec![
+            "-init_hw_device".to_string(),
+            "vaapi=va:/dev/dri/renderD128".to_string(),
             "-hwaccel".to_string(),
             "vaapi".to_string(),
             "-hwaccel_output_format".to_string(),

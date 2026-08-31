@@ -50,11 +50,11 @@ pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
             "quality" | _ => {
                 // CQP path = constant-quality, no bitrate cap.
                 // Convert user's0..100 quality into codec's range.
-                let cq = 52_u32.saturating_sub(config.quality / 2).clamp(1, 51);
+                // let cq = 52_u32.saturating_sub(config.quality / 2).clamp(1, 51);
                 args.push("-rc_mode".to_string());
                 args.push("CQP".to_string());
                 args.push("-global_quality".to_string());
-                args.push(cq.to_string());
+                args.push(config.quality.to_string());
             }
         }
     } else if config.video_bitrate_mode == "bitrate" {
@@ -209,8 +209,21 @@ fn normalize_tiff_compression(value: &str) -> &'static str {
 
 pub fn add_audio_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
     args.push("-c:a".to_string());
+
+    // -----------------------------------------------------------
+    // Copy mode: pass-through without re-encoding.
+    // No sample-rate, channel, or bitrate flags are valid here.
+    // -----------------------------------------------------------
+    if config.audio_codec == "copy" {
+        args.push("copy".to_string());
+        return;
+    }
+
     args.push(config.audio_codec.clone());
 
+    // -----------------------------------------------------------
+    // Bitrate / VBR (only for lossy codecs)
+    // -----------------------------------------------------------
     let lossless_audio_codecs = ["flac", "alac", "pcm_s16le", "pcm_bluray"];
     let is_lossless = lossless_audio_codecs.contains(&config.audio_codec.as_str());
 
@@ -225,6 +238,9 @@ pub fn add_audio_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
         }
     }
 
+    // -----------------------------------------------------------
+    // Channel layout
+    // -----------------------------------------------------------
     match config.audio_channels.as_str() {
         "stereo" => {
             args.push("-ac".to_string());
@@ -237,6 +253,9 @@ pub fn add_audio_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
         _ => {}
     }
 
+    // -----------------------------------------------------------
+    // Sample-rate overrides for codecs with fixed expectations
+    // -----------------------------------------------------------
     if matches!(config.audio_codec.as_str(), "mp2" | "pcm_bluray") {
         args.push("-ar".to_string());
         args.push("48000".to_string());
