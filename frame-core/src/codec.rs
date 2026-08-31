@@ -78,7 +78,7 @@ pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
             map_vaapi_preset(&config.preset)
         } else {
             config.preset.clone()
-        }
+        };
         args.push(preset_value);
     }
 
