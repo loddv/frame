@@ -663,7 +663,7 @@ pub fn build_ffmpeg_args(
             args.push(build_encode_overlay_filter_complex(config));
         } else {
             let video_filters = build_encode_video_filters(config, true);
-            if !video_filters.is_empty() && !config.hw_decode { {
+            if !video_filters.is_empty() && !config.hw_decode {
                 args.push("-vf".to_string());
                 args.push(video_filters.join(","));
             }
