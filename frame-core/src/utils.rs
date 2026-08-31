@@ -140,11 +140,9 @@ pub fn get_hwaccel_args(video_codec: &str) -> Vec<String> {
             "-hwaccel_output_format".to_string(),
             "cuda".to_string(),
         ]
-    } 
-    if is_videotoolbox_codec(video_codec) {
+    } else if is_videotoolbox_codec(video_codec) {
         vec!["-hwaccel".to_string(), "videotoolbox".to_string()]
-    }
-    if is_vaapi_codec(video_codec) {
+    } else if is_vaapi_codec(video_codec) {
         vec![
             "-hwaccel".to_string(),
             "vaapi".to_string(),
