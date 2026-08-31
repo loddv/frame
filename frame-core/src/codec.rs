@@ -33,28 +33,40 @@ pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
         return;
     }
 
-    if config.video_bitrate_mode == "bitrate" {
+    // -----------------------------------------------------------
+    // Rate-control configuration
+    // -----------------------------------------------------------
+    if is_vaapi {
+        // VAAPI codecs (h264_vaapi, hevc_vaapi, vp9_vaapi, etc.) use        // `-rc_mode` instead of `-rc:v`, and quality is set via
+        // `-global_quality` (range depends on codec: 1..51 for H.264,
+        // 0..51 for HEVC).
+        match config.video_bitrate_mode.as_str() {
+            "bitrate" => {
+                args.push("-rc_mode".to_string());
+                args.push("VBR".to_string()); // ou "CBR"
+                args.push("-b:v".to_string());
+                args.push(format!("{}k", config.video_bitrate));
+            }
+            "quality" | _ => {
+                // CQP path = constant-quality, no bitrate cap.
+                // Convert user's0..100 quality into codec's range.
+                let cq = 52_u32.saturating_sub(config.quality / 2).clamp(1, 51);
+                args.push("-rc_mode".to_string());
+                args.push("CQP".to_string());
+                args.push("-global_quality".to_string());
+                args.push(cq.to_string());
+            }
+        }
+    } else if config.video_bitrate_mode == "bitrate" {
         args.push("-b:v".to_string());
         args.push(format!("{}k", config.video_bitrate));
-    } else if is_vaapi {
-        // Para VAAPI, o modo de controle de taxa ideal para qualidade constante/VBR é CQP ou a flag de global_quality
-        let cq = 52_u32.saturating_sub(config.quality / 2).clamp(1, 51);
-        
-        args.push("-rc_mode".to_string());
-        args.push("CQP".to_string());
-        args.push("-global_quality".to_string());
-        args.push(cq.to_string());
     } else if is_nvenc {
-        // For NVENC hardware encoders we prefer a quality-based VBR path.
-        // Convert Frame's quality (0..100) into encoder CQ range (1..51).
         let cq = 52_u32.saturating_sub(config.quality / 2).clamp(1, 51);
         args.push("-rc:v".to_string());
         args.push("vbr".to_string());
         args.push("-cq:v".to_string());
         args.push(cq.to_string());
     } else if is_svt_av1 {
-        // For SVT-AV1 we prefer a quality-based VBR path.
-        // Convert Frame's quality (0..100) into encoder QP range (0..63).
         let qp = 63_u32.saturating_sub(config.quality * 63 / 100).clamp(0, 63);
         args.push("-rc:v".to_string());
         args.push("vbr".to_string());
@@ -68,20 +80,35 @@ pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
         args.push(config.crf.to_string());
     }
 
-    if !is_videotoolbox {
+    // -----------------------------------------------------------
+    // Speed / preset configuration
+    // -----------------------------------------------------------
+    if is_vaapi {
+        // VAAPI doesn't accept `-preset`. Map our preset name to
+        // `-low_power` (and optionally `-async_depth`) instead.
+        let (low_power, async_depth) = map_vaapi_preset(&config.preset);
+        args.push("-low_power".to_string());
+        args.push(low_power.to_string());
+        if let Some(depth) = async_depth {
+            args.push("-async_depth".to_string());
+            args.push(depth.to_string());
+        }
+    } else if !is_videotoolbox {
+        // libx264 / libx265 / NVENC / SVT-AV1 all accept `-preset`.
         args.push("-preset".to_string());
         let preset_value = if is_nvenc {
             map_nvenc_preset(&config.preset)
         } else if is_svt_av1 {
             map_svt_av1_preset(&config.preset)
-        } else if is_vaapi {
-            map_vaapi_preset(&config.preset)
         } else {
             config.preset.clone()
         };
         args.push(preset_value);
     }
 
+    // -----------------------------------------------------------
+    // Codec-specific extra flags
+    // -----------------------------------------------------------
     if is_nvenc {
         if config.nvenc_spatial_aq {
             args.push("-spatial_aq".to_string());
@@ -92,7 +119,7 @@ pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
             args.push("1".to_string());
         }
     }
-    
+
     if is_vaapi && config.vaapi_allow_sw {
         args.push("-allow_sw".to_string());
         args.push("1".to_string());

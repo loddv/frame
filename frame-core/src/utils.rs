@@ -96,18 +96,29 @@ pub fn map_svt_av1_preset(preset: &str) -> String {
         _ => "8".to_string(),
     }
 }
-
+/// Maps a libx264-style preset name to VAAPI encoder options.
+///
+/// Returns `(low_power, async_depth)`:
+/// * `low_power` (0 or 1) — selects fast low-power encoding on the GPU
+/// * `async_depth` — frames-in-flight for the pipeline (`None` = don't set)
+///
+/// VAAPI has no concept of `-preset` like x264; this is the closest
+/// equivalent.
 #[must_use]
-pub fn map_vaapi_preset(preset: &str) -> String {
-    // VAAPI presets vary by driver; keep mapping conservative and similar to NVENC mapping.
+pub fn map_vaapi_preset(preset: &str) -> (u8, Option<u8>) {
     match preset {
-        "default" => "default".to_string(),
-        "fast" | "medium" | "slow" | "p1" | "p2" | "p3" | "p4" | "p5" | "p6" | "p7" => {
-            preset.to_string()
-        }
-        "ultrafast" | "superfast" | "veryfast" | "faster" => "fast".to_string(),
-        "slower" | "veryslow" => "slow".to_string(),
-        _ => "medium".to_string(),
+        // --- Fast presets (low quality, high throughput) ---
+        "ultrafast" | "superfast" | "veryfast"
+        | "faster" | "fast" | "p1" | "p2" | "p3" => (1, Some(8)),
+
+        // --- Balanced default ---
+        "medium" | "default" | "p4" => (0, Some(4)),
+
+        // --- Quality presets (slower, better rate-distortion) ---
+        "slow" | "slower" | "very slow" | "p5" | "p6" | "p7" => (0, Some(2)),
+
+        // --- Unknown → balanced default ---
+        _ => (0, Some(4)),
     }
 }
 
