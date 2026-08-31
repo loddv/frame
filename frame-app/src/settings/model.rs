@@ -1081,7 +1081,7 @@ pub(super) enum VideoCodecCapability {
     Av1Vaapi,
 }
 
-pub(super) const VIDEO_CODEC_DEFINITIONS: [VideoCodecDefinition; 13] = [
+pub(super) const VIDEO_CODEC_DEFINITIONS: [VideoCodecDefinition; 15] = [
     VideoCodecDefinition {
         codec: "libx264",
         label: "H.264 / AVC",
