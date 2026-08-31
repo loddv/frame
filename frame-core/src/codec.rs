@@ -36,7 +36,6 @@ pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
     if config.video_bitrate_mode == "bitrate" {
         args.push("-b:v".to_string());
         args.push(format!("{}k", config.video_bitrate));
-        # For NVENC or VAAPI hardware encoders we prefer a quality-based VBR path.
     } else if is_vaapi {
         // Para VAAPI, o modo de controle de taxa ideal para qualidade constante/VBR é CQP ou a flag de global_quality
         let cq = 52_u32.saturating_sub(config.quality / 2).clamp(1, 51);
