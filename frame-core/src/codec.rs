@@ -38,13 +38,14 @@ pub fn add_video_codec_args(args: &mut Vec<String>, config: &ConversionConfig) {
         args.push(format!("{}k", config.video_bitrate));
         # For NVENC or VAAPI hardware encoders we prefer a quality-based VBR path.
     } else if is_vaapi {
-        // For VAAPI hardware encoders we prefer a quality-based VBR path.
-        // Convert Frame's quality (0..100) into encoder CQ range (1..51) similar to NVENC handling.
+        // Para VAAPI, o modo de controle de taxa ideal para qualidade constante/VBR é CQP ou a flag de global_quality
         let cq = 52_u32.saturating_sub(config.quality / 2).clamp(1, 51);
-        args.push("-rc:v".to_string());
-        args.push("vbr".to_string());
-        args.push("-cq:v".to_string());
+        
+        args.push("-rc_mode".to_string());
+        args.push("CQP".to_string());
+        args.push("-global_quality".to_string());
         args.push(cq.to_string());
+    }
     } else if is_nvenc {
         // For NVENC hardware encoders we prefer a quality-based VBR path.
         // Convert Frame's quality (0..100) into encoder CQ range (1..51).
